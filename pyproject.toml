@@ -1,0 +1,25 @@
+[project]
+name = "snake-ai"
+version = "0.1.0"
+description = "Snake game for humans and AI. Used as a test harness to test various AI decision models like Jev or clef"
+readme = "README.md"
+authors = [
+    { name = "Rashid Javed", email = "rashid.javed@yahoo.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "pygame>=2.6.1",
+    "python-dotenv>=1.2.4",
+    "requests>=2.34.2",
+]
+
+[project.scripts]
+snake-ai-launcher = "snake_ai.launcher:main"
+snake-ai = "snake_ai:main"
+snake-ai-replay = "snake_ai.replay:main"
+snake-ai-benchmark = "snake_ai.benchmark:main"
+snake-ai-dashboard = "snake_ai.dashboard:main"
+
+[build-system]
+requires = ["uv_build>=0.12.19,<0.13.0"]
+build-backend = "uv_build"

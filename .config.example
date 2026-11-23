@@ -1,0 +1,11 @@
+# Shareable settings. Credentials belong only in .env.
+AI_PROVIDER=ollama
+LOCAL_AI_MODEL_NAME=tev1:4b-mlx-bf16
+OLLAMA_BASE_URL=http://localhost:11434
+OPENROUTER_MODEL_NAME=typesafe/jev-1.14
+AI_TIMEOUT_SECONDS=120
+AI_LOG_DIR=logs
+GAME_SPEED=0
+
+# Base URL only; the app appends /v1/systemone.
+OPENROUTER_BASE_URL=https://openrouter.ai/api

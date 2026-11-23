@@ -1,0 +1,26 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+.env
+logs/
+docs/
+.DS_Store
+notes.txt
+Image.png
+Project_Requirement.md
+Sample_Snake.py
+test_or.py
+PROJECT_GUIDE.md
+Sample_Snake.py.ignore
+test_or.py.ignore
+/.vscode
+/Project_Requirement.md.ignore
+

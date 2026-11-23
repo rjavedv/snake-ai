@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Snake AI · Benchmark results</title>
+<style>
+:root{font:15px system-ui,sans-serif;color:#e4eaf4;background:#0c1421;color-scheme:dark}body{max-width:1400px;margin:auto;padding:32px}h1{font-size:32px;margin:8px 0}h2{font-size:20px}p,.muted{color:#a9b8ce;line-height:1.6}.eyebrow{color:#66e0bf;letter-spacing:2px;font-size:12px}section{background:#131f30;border:1px solid #29384c;border-radius:14px;padding:22px;margin-top:22px}.scroll{overflow:auto}table{border-collapse:collapse;width:100%;white-space:nowrap}th,td{text-align:left;border-bottom:1px solid #2a384b;padding:12px 14px;font-size:13px}th{color:#9dafc7}select{padding:10px;max-width:100%;border-radius:8px;background:#1d2d43;border:1px solid #49617b}a{color:#77d9ff}label{display:block;margin:20px 0 8px}.cards{display:flex;gap:16px;flex-wrap:wrap}.card{flex:1;min-width:160px;background:#1b2b40;padding:18px;border-radius:10px}.card strong{font-size:26px;display:block;color:#66e0bf}svg{width:100%;min-width:650px;height:auto}.legend{display:flex;flex-wrap:wrap;gap:16px;font-size:13px}.badge{color:#66e0bf}#warnings{color:#ffd08a}button{padding:8px} @media(max-width:600px){body{padding:16px}section{padding:14px}}
+</style>
+<header><div class="eyebrow">SNAKE AI - EVALUATION LAB</div><h1>Benchmark results</h1><p>Same starting state. Same food sequence. Compare progress, efficiency, and consistency.</p></header>
+<label for="scenario">Scenario and rules fingerprint</label><select id="scenario"></select><p id="rules"></p><div class="cards" id="cards"></div>
+<section><h2>Model comparison</h2><p>Runs are grouped by provider and model. Completion moves include successful runs only. Range shows the fastest and slowest completion.</p><div class="scroll"><table id="models"></table></div></section>
+<section><h2>Food collected over moves</h2><p>Each line is one run. A shorter line can indicate an early loss; use completion status alongside efficiency.</p><div class="scroll"><svg id="chart" viewBox="0 0 1000 300" role="img" aria-label="Cumulative food collected by move count"></svg></div><div class="legend" id="legend"></div></section>
+<section><h2>Individual runs</h2><div class="scroll"><table id="runs"></table></div><p>Log links open the raw records. Inspect a run on the game board with <code>uv run snake-ai-replay &lt;log path&gt;</code>.</p></section>
+<section><h2>Moves to each food item</h2><p>Moves are counted from the previous food, or from the start for item 1. Waiting moves are included. “Not reached” never counts as zero.</p><div class="scroll"><table id="food"></table></div></section>
+<p id="empty"></p><p id="warnings"></p><p class="muted">Offline snapshot · Regenerate the dashboard to include new logs. Decision seconds include recorded response and error durations. Cost is shown only when every response supplies usage.cost (USD).</p>
+<script id="data" type="application/json">__BENCHMARK_DATA__</script>
+<script>
+const data=JSON.parse(document.getElementById('data').textContent), el=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=n=>n==null?'—':Number(n).toLocaleString(undefined,{maximumFractionDigits:2});
+const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+const table=(id,headers,rows)=>el(id).innerHTML='<thead><tr>'+headers.map(h=>'<th>'+esc(h)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map(c=>'<td>'+c+'</td>').join('')+'</tr>').join('')+'</tbody>';
+const palette=['#66e0bf','#77baff','#f4bf75','#d69cff','#ff8da0','#b9d86f'];
+const scenarios=new Map(data.runs.map(r=>[r.benchmark.fingerprint,r.benchmark.scenario]));
+for(const [key,s] of scenarios){const o=document.createElement('option');o.value=key;o.textContent=`${s.name} · v${s.version} · ${key.slice(0,12)}`;el('scenario').append(o)}
+el('warnings').textContent=data.warnings.length?'Unreadable logs: '+data.warnings.join('; '):'';
+function render(){
+const key=el('scenario').value, selected=data.runs.filter(r=>r.benchmark.fingerprint===key), s=scenarios.get(key); if(!s){el('empty').textContent='No benchmark runs found. Run a benchmark, then regenerate this report.';return}
+el('rules').textContent=`${s.width} × ${s.height} board · ${s.food_target} food target · ${s.move_limit.toLocaleString()} move limit · Occupied targets wait until free`;
+const complete=selected.filter(r=>r.outcome==='scenario_completed');
+el('cards').innerHTML=[['Runs',selected.length],['Models',new Set(selected.map(r=>r.provider+'/'+r.model)).size],['Completion rate',fmt(100*complete.length/selected.length)+'%'],['Mean completion moves',fmt(avg(complete.map(r=>r.moves)))]].map(([k,v])=>`<div class="card"><span>${k}</span><strong>${v}</strong></div>`).join('');
+const groups=new Map();selected.forEach(r=>{const k=r.provider+'/'+r.model;if(!groups.has(k))groups.set(k,[]);groups.get(k).push(r)});
+table('models',['Provider / model','Runs','Completion rate','Mean completion moves','Completion range','Mean food reached','Model errors'],[...groups].map(([k,rs])=>{const cs=rs.filter(r=>r.outcome==='scenario_completed');return [esc(k),rs.length,fmt(100*cs.length/rs.length)+'%',fmt(avg(cs.map(r=>r.moves))),cs.length?`${Math.min(...cs.map(r=>r.moves))}–${Math.max(...cs.map(r=>r.moves))}`:'—',fmt(avg(rs.map(r=>r.score))),rs.filter(r=>r.outcome==='model_error').length]}));
+table('runs',['Run','Provider / model','Result','Food / target','Total moves','Completion moves','Moves / reached food','Waiting moves','Decision seconds','USD cost','Log'],selected.map((r,i)=>[i+1,esc(r.provider+'/'+r.model),esc(r.outcome.replaceAll('_',' ')),`${r.score} / ${s.food_target}`,r.moves,r.outcome==='scenario_completed'?r.moves:'—',fmt(avg(r.food.map(f=>f.moves))),fmt(r.waiting_moves),fmt(r.seconds),r.cost==null?'—':r.cost.toFixed(6),`<a href="${esc(r.log)}">${esc(r.id)}</a>`]));
+table('food',['Food','Coordinate',...selected.map((r,i)=>`Run ${i+1} · ${r.model}`)],Array.from({length:s.food_target},(_,i)=>[i+1,esc(s.food[i].join(', ')),...selected.map(r=>{const f=r.food.find(f=>f.item===i+1);return f?`${f.moves} moves · ${f.waiting_moves} waiting · total ${f.step}`:'<span class="muted">Not reached</span>'})]));
+const maxMoves=Math.max(1,...selected.map(r=>r.moves)), x=m=>55+910*m/maxMoves,y=f=>250-220*f/s.food_target;
+let svg='<title>Food collected against moves taken</title><path d="M55 25V250H965" fill="none" stroke="#8294ac"/>';
+for(let t=0;t<=4;t++){const m=Math.round(maxMoves*t/4);svg+=`<text x="${x(m)}" y="275" text-anchor="middle" fill="#a9b8ce" font-size="12">${m}</text>`;const f=Math.round(s.food_target*t/4);svg+=`<text x="45" y="${y(f)+4}" text-anchor="end" fill="#a9b8ce" font-size="12">${f}</text>`}
+svg+='<text x="500" y="298" text-anchor="middle" fill="#a9b8ce" font-size="12">Moves</text>';
+selected.forEach((r,i)=>{let points=`55,250`;let prev=0;r.food.forEach(f=>{points+=` ${x(f.step)},${y(prev)} ${x(f.step)},${y(f.item)}`;prev=f.item});points+=` ${x(r.moves)},${y(r.score)}`;svg+=`<polyline points="${points}" fill="none" stroke="${palette[i%palette.length]}" stroke-width="2"><title>${esc(r.model)} · run ${i+1}</title></polyline><circle cx="${x(r.moves)}" cy="${y(r.score)}" r="4" fill="${palette[i%palette.length]}"/>`});
+el('chart').innerHTML=svg;el('legend').innerHTML=selected.map((r,i)=>`<span style="color:${palette[i%palette.length]}">● Run ${i+1} · ${esc(r.model)} · ${esc(r.outcome.replaceAll('_',' '))}</span>`).join('');
+}
+el('scenario').addEventListener('change',render);render();
+</script></html>
